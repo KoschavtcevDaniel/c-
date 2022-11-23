@@ -1,0 +1,78 @@
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#include <winsock2.h>
+#include <windows.h>
+#include <string>
+#include <iostream>
+#pragma comment(lib, "ws2_32.lib")
+#pragma warning(disable: 4996)
+using namespace std;
+#define PORT 999    
+#define sHELLO "Hello, STUDENT\n"
+
+struct Student
+{
+    string name;
+    int a[4];
+}B;
+
+int answer;
+
+
+int main() {
+    cout << "Server working:\n";
+
+    int err = WSAStartup(MAKEWORD(2, 2), (WSADATA*)&answer);
+    if (err != 0) {
+        cout << "WSASTARTUP ERROR: " << WSAGetLastError() << "\n";
+        return 1;
+    }
+
+    SOCKET Lsock;
+    Lsock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (Lsock == INVALID_SOCKET) {
+        cout << "SOCKET() ERROR: " << WSAGetLastError();
+        WSACleanup();
+        return 1;
+    }
+
+    sockaddr_in Laddr;
+    Laddr.sin_family = AF_INET;
+    Laddr.sin_addr.s_addr = INADDR_ANY;
+
+    Laddr.sin_port = htons(PORT);
+    if (bind(Lsock, (sockaddr*)&Laddr, sizeof(Laddr)))
+    {
+        cout << "BIND ERROR:" << WSAGetLastError();
+        closesocket(Lsock);
+        WSACleanup();
+        return 1;
+    }
+
+    while (1) {
+        sockaddr_in Caddr;
+        
+        int Caddr_size = sizeof(Caddr);
+        int bsize = recvfrom(Lsock, (char*)&B, sizeof(B), 0, (sockaddr*)&Caddr, &Caddr_size);
+        if (bsize == SOCKET_ERROR)
+            cout << "RECVFROM() ERROR:" << WSAGetLastError();
+        cout << "New info\n" << B.name << '\n';
+        hostent *hst;
+        hst = gethostbyaddr((char*)&Caddr.sin_addr, 4, AF_INET);
+        cout << "New datagram: " << ((hst) ? hst->h_name : "Unknown host") << "/n" << inet_ntoa(Caddr.sin_addr) << "/n" << ntohs(Caddr.sin_port) << '\n';
+
+        int f = 0;
+        for (int i = 0; i < 4; i++) {
+            if (B.a[i] == 3 && f == 0)
+                answer = 0;
+            if (B.a[i] == 2)
+            {
+                f -= 1;
+                answer = f;
+            }
+        }
+
+        sendto(Lsock, (char*)&answer, sizeof(answer), 0, (sockaddr*)&Caddr, sizeof(Caddr));
+    }
+
+    return 0;
+}
